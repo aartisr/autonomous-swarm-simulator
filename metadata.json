@@ -1,0 +1,6 @@
+{
+  "name": "AERO-SWARM: Autonomous Swarm & Dynamic Pathfinding Simulator",
+  "description": "Decentralized autonomous drone/rover swarm simulation featuring CBBA consensus bundle auctions, dynamic RRT* and A* pathfinding, GPS-denied VIO drift modeling, and ROS 2 telemetry middleware.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
