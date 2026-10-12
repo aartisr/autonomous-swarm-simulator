@@ -3,9 +3,11 @@
  * Follows aerospace high-density layout guidelines.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { simulationEngine } from '../../engine/simulationEngine';
 import {
+  Check,
+  Download,
   FastForward,
   Pause,
   Play,
@@ -21,6 +23,16 @@ import {
 export const MissionControlRibbon: React.FC = () => {
   const { config, missionElapsedTime, agents, isConsensusSettled, totalTargetsScouted, targets } =
     simulationEngine;
+
+  const [hasDownloaded, setHasDownloaded] = useState(false);
+
+  const handleDownloadLogs = () => {
+    simulationEngine.downloadSimulationLogs();
+    setHasDownloaded(true);
+    setTimeout(() => {
+      setHasDownloaded(false);
+    }, 2500);
+  };
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -154,6 +166,29 @@ export const MissionControlRibbon: React.FC = () => {
         >
           <Radio className="w-3.5 h-3.5 text-cyan-400" />
           <span>UWB Anchoring: {config.uwbAnchoringActive ? 'ON' : 'OFF'}</span>
+        </button>
+
+        {/* Download Simulation Logs Button */}
+        <button
+          onClick={handleDownloadLogs}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded font-mono text-[11px] transition-all border shadow-sm ${
+            hasDownloaded
+              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-600'
+              : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-slate-700 hover:border-cyan-500 hover:text-cyan-200'
+          }`}
+          title="Download CBBA Ledger State and Swarm Telemetry as JSON"
+        >
+          {hasDownloaded ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400 animate-in zoom-in-50" />
+              <span className="font-semibold text-emerald-300">Logs Exported</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Download Simulation Logs</span>
+            </>
+          )}
         </button>
 
         {/* Reset */}

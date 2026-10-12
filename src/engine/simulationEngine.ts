@@ -853,6 +853,144 @@ export class SimulationEngine {
       'best_effort'
     );
   }
+
+  /**
+   * Generates a comprehensive JSON snapshot of current CBBA ledger state,
+   * consensus convergence, and all agent telemetry.
+   */
+  public getSimulationLogSnapshot() {
+    return {
+      metadata: {
+        system: 'AERO-SWARM Autonomous Swarm Simulator',
+        exportTimestamp: new Date().toISOString(),
+        missionElapsedTimeSeconds: Number(this.missionElapsedTime.toFixed(2)),
+        missionElapsedFormatted: `T+${String(Math.floor(this.missionElapsedTime / 60)).padStart(2, '0')}:${String(
+          Math.floor(this.missionElapsedTime % 60)
+        ).padStart(2, '0')}`,
+        scenario: this.config.scenario,
+        swarmSize: this.config.swarmSize,
+        simSpeed: this.config.simSpeed,
+        pathfindingAlgorithm: this.config.pathfindingAlgo,
+        jammingActive: this.config.jammingActive,
+        uwbAnchoringActive: this.config.uwbAnchoringActive,
+        driftNoiseFloor: this.config.driftNoiseFloor,
+        sensorUncertainty: this.config.sensorUncertainty,
+      },
+      cbbaLedgerState: {
+        consensusRound: this.consensusRound,
+        isConsensusSettled: this.isConsensusSettled,
+        totalTargetsScouted: this.totalTargetsScouted,
+        targetsCount: this.targets.length,
+        targetAllocations: this.targets.map((tgt) => {
+          const winner = this.agents.find((a) => a.id === tgt.currentWinner);
+          return {
+            id: tgt.id,
+            code: tgt.code,
+            priority: tgt.priority,
+            reward: tgt.reward,
+            position: tgt.position,
+            status: tgt.status,
+            scoutedProgress: Number(tgt.scoutedProgress.toFixed(3)),
+            winningAgentId: tgt.currentWinner,
+            winningAgentCallsign: winner ? winner.callsign : null,
+            winningBid: Number(tgt.winningBid.toFixed(2)),
+            bidLedger: tgt.bidLedger,
+            timestampLedger: tgt.timestampLedger,
+          };
+        }),
+        agentCbbaStates: this.cbbaStates,
+        events: [...this.cbbaEvents],
+      },
+      telemetry: {
+        totalAgents: this.agents.length,
+        activeAgents: this.agents.filter((a) => a.isAlive).length,
+        jammedAgents: this.agents.filter((a) => a.gpsStatus === 'denied').length,
+        agents: this.agents.map((agent) => {
+          const dx = agent.estimatedPose.x - agent.truePose.x;
+          const dy = agent.estimatedPose.y - agent.truePose.y;
+          const dz = agent.estimatedPose.z - agent.truePose.z;
+          const euclideanDrift = Math.hypot(dx, dy, dz);
+          const drainRatePerMin = agent.batteryDrainRate * 60;
+          const remainingMinutes = drainRatePerMin > 0 ? agent.battery / drainRatePerMin : 0;
+
+          return {
+            id: agent.id,
+            callsign: agent.callsign,
+            type: agent.type,
+            role: agent.role,
+            isAlive: agent.isAlive,
+            gpsStatus: agent.gpsStatus,
+            battery: {
+              percentage: Number(agent.battery.toFixed(1)),
+              drainRatePerSec: agent.batteryDrainRate,
+              estimatedRemainingMinutes: Number(remainingMinutes.toFixed(1)),
+            },
+            truePose: {
+              x: Number(agent.truePose.x.toFixed(2)),
+              y: Number(agent.truePose.y.toFixed(2)),
+              z: Number(agent.truePose.z.toFixed(2)),
+              yaw: Number(agent.truePose.yaw.toFixed(2)),
+            },
+            estimatedPose: {
+              x: Number(agent.estimatedPose.x.toFixed(2)),
+              y: Number(agent.estimatedPose.y.toFixed(2)),
+              z: Number(agent.estimatedPose.z.toFixed(2)),
+              yaw: Number(agent.estimatedPose.yaw.toFixed(2)),
+            },
+            driftError: {
+              dx: Number(dx.toFixed(3)),
+              dy: Number(dy.toFixed(3)),
+              dz: Number(dz.toFixed(3)),
+              euclideanDistanceMeters: Number(euclideanDrift.toFixed(3)),
+            },
+            covarianceSigma: Number(agent.covarianceSigma.toFixed(2)),
+            trueVelocity: {
+              vx: Number(agent.trueVel.vx.toFixed(2)),
+              vy: Number(agent.trueVel.vy.toFixed(2)),
+              vz: Number(agent.trueVel.vz.toFixed(2)),
+              yawRate: Number(agent.trueVel.yawRate.toFixed(2)),
+            },
+            commsRangeMeters: agent.commsRange,
+            peerLinksCount: agent.peerLinks.length,
+            peerLinks: agent.peerLinks,
+            activeSensors: agent.activeSensors,
+            bundle: agent.bundle,
+            currentWaypointIndex: agent.currentWaypointIndex,
+            totalWaypoints: agent.path.length,
+          };
+        }),
+      },
+      activeThreats: this.threats.map((threat) => ({
+        id: threat.id,
+        name: threat.name,
+        type: threat.type,
+        center: threat.center,
+        radius: threat.radius,
+        intensity: threat.intensity,
+        isActive: threat.isActive,
+      })),
+      lastBenchmark: this.lastBenchmark,
+    };
+  }
+
+  /**
+   * Triggers client browser download of current simulation logs as a formatted JSON file.
+   */
+  public downloadSimulationLogs(): void {
+    const data = this.getSimulationLogSnapshot();
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const timeFormatted = `T${Math.floor(this.missionElapsedTime)}s`;
+    const dateFormatted = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `aero-swarm-sim-logs-${timeFormatted}-${dateFormatted}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }
 
 export const simulationEngine = new SimulationEngine();
